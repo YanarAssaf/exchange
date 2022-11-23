@@ -1,0 +1,36 @@
+# By default, the restored mailbox database will be in the Dirty Shutdown state. To check the database status and bring the mailbox database to Clean Shutdown state, use the following commands:
+eseutil.exe /mh "D:\RDB\Mailbox Database.edb"
+
+# To bring the database to clean state, Soft Recovery is required. The command to perform Soft Recovery is as follows:
+eseutil.exe /r e01 /l "D:\ُRDB\Mailbox Database" /d "D:\RDB" || /a
+eseutil.exe /r E00 /l "d:\RDB\D\Exchange Server\Mailbox\Mailbox Database 0237278260" /d "d:\RDB\D\Exchange Server\Mailbox\Mailbox Database 0237278260"
+
+# In case the database is still in Dirty Shutdown state, you may proceed with Hard Recovery
+\eseutil.exe /p "D:\Databases\Mailbox Database\Mailbox Database.edb"
+
+# check the status of the database. It should be in Clean Shutdown state.
+eseutil.exe /mh "D:\RDB\Mailbox Database.edb"
+
+# Create a recovery database
+New-MailboxDatabase -Recovery -Name RDB -Server mail -EdbFilePath "C:\Program Files\Microsoft\Exchange Server\V15\Mailbox\Recover\Mailbox Database.edb" -LogFolderPath "C:\Program Files\Microsoft\Exchange Server\V15\Mailbox\Recover"
+
+# Mount the recovery database
+Mount-Database RDB
+
+# restore a mailbox
+New-MaiboxRestoreRequest -SourceDatabase "RDB" -SourceStoreMailbox "vaishika sathesh" -TargetMailbox vaishika@localhost
+New-MailboxRestoreRequest -SourceDatabase "RDB" -SourceStoreMailbox 3965757c-f9f4-4c8d-a8c2-56a410257b52 -TargetMailbox vaishika@localhost -SkipMerging StorageProviderForSource
+
+
+# bulk mailboxes restore 
+Foreach ($mailbox in Get-MailboxStatistics -Database RDB)
+ 
+{
+ 
+New-MailboxRestoreRequest -SourceDatabase RDB -SourceStoreMailbox $mailbox.DisplayName -TargetMailbox $mailbox.DisplayName
+ 
+}
+
+
+Get-MailboxRestoreRequest -Status Completed | Remove-MailboxRestoreRequest
+
