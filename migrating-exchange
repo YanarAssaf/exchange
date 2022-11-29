@@ -26,7 +26,7 @@ To ensure these changes are in effect, recycle the Application Pool for MSExchan
 RESTART IIS
 
 4. Move Exchange Server System And User Mailboxes 
-`Get-Mailbox –Arbitration`
+Get-Mailbox –Arbitration
 Get-Mailbox -Arbitration | New-MoveRequest -TargetDatabase NEWDB
 Get-MoveRequest | Get-MoveRequestStatistics
 Get-Mailbox –Server OldServer  –PublicFolder
