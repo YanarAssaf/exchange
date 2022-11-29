@@ -1,0 +1,44 @@
+1. Installing Prerequisites and Exchange Server 
+2. Installing the right SSL certificate on New Exchange (Optional)
+Get-ExchangeCertificate | fl Thumbprint, NotAfter, Issuer, CertificateDomains, Services
+
+2.1 Export Certificate from old Exchange 
+$password = ConvertTo-SecureString “Password” -AsPlainText –Force
+Export-ExchangeCertificate -Thumbprint 00000 -FileName
+C:\OldExchangeCertificate.pfx -Password $password | Out-Null
+
+2.2 Import Certificate to New Exchange 
+$password = ConvertTo-SecureString "Password" -AsPlainText –Force
+Import-ExchangeCertificate -FileName C:\OldExchangeCertificate.pfx -PrivateKeyExportable $true –Password
+$password | Enable-ExchangeCertificate –Services POP,IMAP, IIS,SMTP –DoNotRequireSsl
+
+3.Setting virtual directories on New Exchange 
+Get-OutlookAnywhere -Server NewServer | Set-OutlookAnywhere -InternalHostname -InternalClientAuthenticationMethod Ntlm -InternalClientsRequireSsl $true -ExternalHostname -ExternalClientAuthenticationMethod Basic -ExternalClientsRequireSsl $true -IISAuthenticationMethods Negotiate,NTLM,Basic
+Get-EcpVirtualDirectory -Server NewServer | Set-EcpVirtualDirectory -InternalUrl https://mail.domain.local/ecp -ExternalUrl https://mail.domain.local/ecp
+Get-OwaVirtualDirectory -Server NewServer | Set-OwaVirtualDirectory -InternalUrl https://mail.domain.local/owa -ExternalUrl https://mail.domain.local/owa
+Get-WebServicesVirtualDirectory -Server NewServer | Set-WebServicesVirtualDirectory -InternalUrl https://mail.domain.local/EWS/Exchange.asmx -ExternalUrl https://mail.domain.local/EWS/Exchange.asmx
+Get-ActiveSyncVirtualDirectory –Server NewServer | Set-ActiveSyncVirtualDirectory -InternalUrl https://mail.domain.local/Microsoft-Server-ActiveSync –ExternalUrl https://mail.domain.local/Microsoft-Server-ActiveSync
+Get-OabVirtualDirectory -Server NewServer | Set-OabVirtualDirectory -InternalUrl https://mail.domain.local/OAB -ExternalUrl https://mail.domain.local/OAB
+Get-MapiVirtualDirectory -Server NewServer | Set-MapiVirtualDirectory -InternalUrl https://mail.domain.local/mapi -ExternalUrl https://mail.domain.local/mapi
+Get-Set-ClientAccessService –AutoDiscoverServiceInternalUri s
+
+To ensure these changes are in effect, recycle the Application Pool for MSExchangeAutodiscoverAppPool
+RESTART IIS
+
+4. Move Exchange Server System And User Mailboxes 
+`Get-Mailbox –Arbitration`
+Get-Mailbox -Arbitration | New-MoveRequest -TargetDatabase NEWDB
+Get-MoveRequest | Get-MoveRequestStatistics
+Get-Mailbox –Server OldServer  –PublicFolder
+New-MoveRequest PublicFolders1 -TargetDatabase NEWDB
+Get-Mailbox -Database "OLDDB" | New-MoveRequest -TargetDatabase NEWDB
+Get-MoveRequest | Get-MoveRequestStatistics
+
+5. Outgoing email flow migration to Exchange 
+Get-SendConnector | fl Name,SmartHosts, SourceTransportServers,AddressSpaces
+Set-SendConnector "Internet Send Connector" -SourceTransportServers NewServer
+Set-SendConnector "Internet Send Connector" -SourceTransportServers NewServer
+
+
+
+
